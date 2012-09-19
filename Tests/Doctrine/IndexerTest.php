@@ -1,13 +1,10 @@
 <?php
+//TODO: move the tests to a different bundle, to enable the creation of Doctrine entities
 namespace Qimnet\SolrClientBundle\Tests\Doctrine;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Qimnet\SolrClientBundle\Doctrine\Indexer;
 use Qimnet\CombatBundle\Entity\Story;
 use Qimnet\CombatBundle\Entity\Tag;
-/**
- *
- * @author akton
- */
 class IndexerTest extends WebTestCase 
 {
     /**

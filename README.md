@@ -80,7 +80,7 @@ Batch index update
 If no `@Solr\NeedsIndex` is found in the entity, the index is updated 
 automatically.
 
-To launch the indexation manually, use the `qimnet:solr:index command`.
+To launch the indexation manually, use the `qimnet:solr:index` command.
 
 
 

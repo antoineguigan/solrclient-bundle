@@ -5,7 +5,9 @@ use Doctrine\ORM\Event\LifecycleEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Qimnet\SolrClientBundle\Doctrine\Indexer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-
+/**
+ * Listens to Doctrine events and updates the Solr index accordingly.
+ */
 class IndexableListener implements EventSubscriber {
     /**
      * @var Indexer $indexer
@@ -19,22 +21,47 @@ class IndexableListener implements EventSubscriber {
     public function getSubscribedEvents() {
         return array('prePersist', 'postPersist', 'preUpdate','postUpdate', 'preRemove');
     }
+    /**
+     * Returns an object representing the indexable fields for the entity.
+     * 
+     * @param LifecycleEventArgs $args
+     * @return array
+     */
     protected function getEntityFields(LifecycleEventArgs $args)
     {
         return $this->indexer->getEntityFields(get_class($args->getEntity()));
     }
+    /**
+     * Returns true if the entity is indexable.
+     * 
+     * @param LifecycleEventArgs $args
+     * @return boolean
+     */
     protected function isIndexable(LifecycleEventArgs $args)
     {
         return count($this->getEntityFields($args)->indexable);
     }
+    /**
+     * Returns true if the indexation should be performed in realtime
+     * 
+     * @param \Doctrine\ORM\Event\LifecycleEventArgs $args
+     * @return type
+     */
     protected function isRealtime(LifecycleEventArgs $args)
     {
         return is_null($this->getEntityFields($args)->needs_index);
     }
+    /**
+     * Returns the solr id of the entity
+     * 
+     * @param \Doctrine\ORM\Event\LifecycleEventArgs $args
+     * @return int
+     */
     protected function getSolrId(LifecycleEventArgs $args)
     {
         return $this->indexer->getSolrId($args->getEntity());
     }
+    
     public function prePersist(LifecycleEventArgs $args)
     {
         if ($this->isIndexable($args) && !$this->isRealtime($args))
@@ -43,6 +70,7 @@ class IndexableListener implements EventSubscriber {
             $args->getEntity()->$setter(1);
         }
     }
+    
     public function postPersist(LifecycleEventArgs $args)
     {
         if ($this->isIndexable($args) && $this->isRealtime($args))
@@ -50,6 +78,7 @@ class IndexableListener implements EventSubscriber {
             $this->indexer->indexEntity($args->getEntity());
         }
     }
+    
     public function preUpdate(PreUpdateEventArgs $args)
     {
         $modified = false;
@@ -74,6 +103,7 @@ class IndexableListener implements EventSubscriber {
             }
         }
     }
+    
     public function postUpdate(LifecycleEventArgs $args)
     {
         if (null !== ($pos = array_search($this->getSolrId($args),$this->indexable_ids)))
@@ -82,6 +112,7 @@ class IndexableListener implements EventSubscriber {
             unset($this->indexable_ids[$pos]);
         }
     }
+    
     public function preRemove(LifecycleEventArgs $args)
     {
         $this->indexer->removeEntity($args->getEntity());

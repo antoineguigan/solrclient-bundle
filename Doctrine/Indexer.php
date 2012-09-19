@@ -31,6 +31,26 @@ class Indexer {
         $this->entities = $entities;
         $this->annotation_reader = $annotation_reader;
     }
+    /**
+     * Returns an object representing the indexable fields for the entity.
+     * 
+     * The following properties are defined in the returned object :
+     *   - id : the id field
+     *   - indexable : an array of indexable fields
+     *   - needs_index: the needs_index field, if it exists
+     *   
+     * Each field is represented by an object containing the following 
+     * properties :
+     *   - getter : the getter method for the field
+     *   - setter : the getter method for the field
+     *   - field : the name of the field in the Doctrine entity
+     *   - solr_name : the name of the field
+     *   - boost : the boost factor of the field
+     *   - id : true if the field is the id field
+     * 
+     * @param string $entity_name the name of the entity
+     * @return stdClass 
+     */
     public function getEntityFields($entity_name)
     {
         if (!isset($this->entity_fields[$entity_name]))
@@ -122,6 +142,13 @@ class Indexer {
         }
         return $this->entity_fields[$entity_name];
     }
+    /**
+     * Indexes all the entities for the repositories defined in the config 
+     * file.
+     * 
+     * @param EntityManager $em
+     * @param boolean $force set to true to index all entities
+     */
     public function indexAllEntities(EntityManager $em, $force=false)
     {
         foreach($this->entities as $entity_name)
@@ -156,6 +183,14 @@ class Indexer {
         }
         return $document;
     }
+    /**
+     * Index entities for the given class. Updates the needs_index field if it
+     * is present.
+     * 
+     * @param EntityManager $em
+     * @param string $entity_name
+     * @param boolean $force true to index all entities.
+     */
     public function indexEntities(EntityManager $em, $entity_name, $force = false)
     {
         $fields = $this->getEntityFields($entity_name);
@@ -205,6 +240,12 @@ class Indexer {
         }
             
     }
+    /**
+     * Returns the solr id of a given entity
+     * 
+     * @param object $entity
+     * @return string
+     */
     public function getSolrId($entity)
     {
         $class = get_class($entity);
@@ -212,11 +253,21 @@ class Indexer {
         $getter = $fields->id->getter;
         return $entity->$getter();
     }
+    /**
+     * Removes the given entity from the solr index
+     * 
+     * @param object $entity
+     */
     public function removeEntity($entity)
     {
         $this->client->deleteById($this->getSolrId($entity));
         $this->client->commit();
     }
+    /**
+     * Indexes the given entity
+     * 
+     * @param type $entity
+     */
     public function indexEntity($entity)
     {
        $document = $this->createSolrDocument($entity);

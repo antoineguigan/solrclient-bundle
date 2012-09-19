@@ -2,12 +2,14 @@ services:
     qimnet.solr.client:
         class: SolrClient
         arguments: [ %qimnet.solr.client.options% ]
+        
     qimnet.solr.indexer:
         class: Qimnet\SolrClientBundle\Doctrine\Indexer
         arguments: 
             - '@qimnet.solr.client'
             - '@annotation_reader'
             - %qimnet.solr.entities%
+            
     qimnet.solr.indexable:
         class: Qimnet\SolrClientBundle\Doctrine\IndexableListener
         arguments: [ '@qimnet.solr.indexer' ]

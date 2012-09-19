@@ -14,9 +14,10 @@
     "minimum-stability": "dev",
     "require": {
         "php": ">=5.3.2",
-        "symfony/framework-bundle": ">=2.0,<2.2-dev",
-        "doctrine/orm": ">=2.2.3,<2.4-dev",
-        "doctrine/doctrine-bundle": "1.0.*"
+        "symfony/framework-bundle": ">=2.0,<2.2-dev"
+    },
+    "require-dev": {
+        "qimnet/solrclient-test-bundle": "1.0-dev"
     },
     "autoload": {
         "psr-0": { "Qimnet\\SolrClientBundle": "" }

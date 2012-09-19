@@ -60,7 +60,7 @@ class Indexer {
             $fields->needs_index = null;
             $fields->id=null;
             $ref = new \ReflectionClass($entity_name);
-            $get_method_object = function($getter, $annotation, $field=null, $setter=null)
+            $get_method_object = function($getter, $annotation, $field=null, $setter=null) use ($entity_name)
             {
                 $ret = new \stdClass;
                 $ret->getter = $getter;
@@ -73,7 +73,7 @@ class Indexer {
                     $ret->id = $annotation->id;
                     if (!$ret->solr_name)
                     {
-                        throw new \Exception("Solr field name required for $entity_name:$method");
+                        throw new \Exception("Solr field name required for $entity_name:$getter");
                     }
                 }
                 return $ret;

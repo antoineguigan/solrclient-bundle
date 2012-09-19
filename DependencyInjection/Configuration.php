@@ -23,10 +23,12 @@ class Configuration implements ConfigurationInterface
         $rootNode
             ->children()
             ->arrayNode('entities')
+                ->info('list of entities that should be indexed by the batch command.')
                 ->prototype('scalar')
                 ->end()
             ->end()
             ->arrayNode('client_options')
+                ->info('see the SolrClient documentation on http://php.met for details about the options.')
                 ->addDefaultsIfNotSet()
                 ->children()
                     ->scalarNode('port')->defaultValue(8080)->end()

@@ -1,9 +1,9 @@
 <?php
-namespace Qimnet\SolrBundle\Doctrine;
+namespace Qimnet\SolrClientBundle\Doctrine;
 use Doctrine\Common\EventSubscriber;
 use Doctrine\ORM\Event\LifecycleEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
-use Qimnet\SolrBundle\Doctrine\Indexer;
+use Qimnet\SolrClientBundle\Doctrine\Indexer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class IndexableListener implements EventSubscriber {

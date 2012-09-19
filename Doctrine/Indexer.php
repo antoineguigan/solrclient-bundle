@@ -1,11 +1,11 @@
 <?php
-namespace Qimnet\SolrBundle\Doctrine;
+namespace Qimnet\SolrClientBundle\Doctrine;
 use Doctrine\ORM\EntityManager;
 use Doctrine\Common\Annotations\Reader;
 use Doctrine\Common\Util\Inflector;
 use Doctrine\ORM\Query;
 use Doctrine\DBAL\LockMode;
-use Qimnet\SolrBundle\Annotation\Indexable;
+use Qimnet\SolrClientBundle\Annotation\Indexable;
 /**
  */
 class Indexer {
@@ -78,7 +78,7 @@ class Indexer {
                     $ann = $this->annotation_reader
                             ->getPropertyAnnotation(
                                 new \ReflectionProperty($entity_name, $property->name),
-                                'Qimnet\SolrBundle\Annotation\Indexable');
+                                'Qimnet\SolrClientBundle\Annotation\Indexable');
                     if ($ann)
                     {
                         $fields->indexable[] = $get_field_object($property->name, $ann);
@@ -86,7 +86,7 @@ class Indexer {
                     $ann = $this->annotation_reader
                             ->getPropertyAnnotation(
                                 new \ReflectionProperty($entity_name, $property->name),
-                                'Qimnet\SolrBundle\Annotation\NeedsIndex');
+                                'Qimnet\SolrClientBundle\Annotation\NeedsIndex');
                     if ($ann)
                     {
                         $fields->needs_index = $get_field_object($property->name, $ann);
@@ -101,7 +101,7 @@ class Indexer {
                     $ann = $this->annotation_reader
                             ->getMethodAnnotation(
                                 new \ReflectionMethod($entity_name, $method->name),
-                                'Qimnet\SolrBundle\Annotation\Indexable');
+                                'Qimnet\SolrClientBundle\Annotation\Indexable');
                     if ($ann)
                     {
                         $fields->indexable[] = $get_method_object($method->name, $ann);

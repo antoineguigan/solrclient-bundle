@@ -1,6 +1,6 @@
 <?php
 
-namespace Qimnet\SolrBundle\DependencyInjection;
+namespace Qimnet\SolrClientBundle\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;

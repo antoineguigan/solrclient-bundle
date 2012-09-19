@@ -1,5 +1,5 @@
 <?php
-namespace Qimnet\SolrBundle\Annotation;
+namespace Qimnet\SolrClientBundle\Annotation;
 /**
  * @Annotation
  */

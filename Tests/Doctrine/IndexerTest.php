@@ -1,7 +1,7 @@
 <?php
-namespace Qimnet\SolrBundle\Tests\Doctrine;
+namespace Qimnet\SolrClientBundle\Tests\Doctrine;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Qimnet\SolrBundle\Doctrine\Indexer;
+use Qimnet\SolrClientBundle\Doctrine\Indexer;
 use Qimnet\CombatBundle\Entity\Story;
 use Qimnet\CombatBundle\Entity\Tag;
 /**

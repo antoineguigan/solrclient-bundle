@@ -1,5 +1,5 @@
 <?php
-namespace Qimnet\SolrBundle\Command;
+namespace Qimnet\SolrClientBundle\Command;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;

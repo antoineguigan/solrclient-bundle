@@ -1,7 +1,7 @@
 {
     "name": "qimnet/solrclient-bundle",
     "type": "symfony-bundle",
-    "description": "Symfony FOSJsRoutingBundle",
+    "description": "QIMNET SolrClient bundle (alpha)",
     "keywords": ["Solr"],
     "homepage": "http://qimnet.com",
     "license": "MIT",

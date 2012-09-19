@@ -1,0 +1,15 @@
+services:
+    qimnet.solr.client:
+        class: SolrClient
+        arguments: [ %qimnet.solr.client.options% ]
+    qimnet.solr.indexer:
+        class: Qimnet\SolrBundle\Doctrine\Indexer
+        arguments: 
+            - '@qimnet.solr.client'
+            - '@annotation_reader'
+            - %qimnet.solr.entities%
+    qimnet.solr.indexable:
+        class: Qimnet\SolrBundle\Doctrine\IndexableListener
+        arguments: [ '@qimnet.solr.indexer' ]
+        tags:
+            - { name: doctrine.event_subscriber, connection: default }

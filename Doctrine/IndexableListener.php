@@ -81,25 +81,28 @@ class IndexableListener implements EventSubscriber {
     
     public function preUpdate(PreUpdateEventArgs $args)
     {
-        $modified = false;
-        foreach( $this->getEntityFields($args)->indexable as $indexable)
+        if ($this->isIndexable($args))
         {
-            if ($indexable->field && $args->hasChangedField($indexable->field))
+            $modified = false;
+            foreach( $this->getEntityFields($args)->indexable as $indexable)
             {
-                $modified = true;
-                break;
+                if ($indexable->field && $args->hasChangedField($indexable->field))
+                {
+                    $modified = true;
+                    break;
+                }
             }
-        }
-        if ($modified)
-        {
-            if ($this->isRealtime($args))
+            if ($modified)
             {
-                $this->indexable_ids[] = $this->getSolrId($args);
-            }
-            else
-            {
-                $setter = $this->getEntityFields($args)->needs_index->setter;
-                $args->getEntity()->$setter(1);
+                if ($this->isRealtime($args))
+                {
+                    $this->indexable_ids[] = $this->getSolrId($args);
+                }
+                else
+                {
+                    $setter = $this->getEntityFields($args)->needs_index->setter;
+                    $args->getEntity()->$setter(1);
+                }
             }
         }
     }

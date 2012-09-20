@@ -109,7 +109,7 @@ class IndexableListener implements EventSubscriber {
     
     public function postUpdate(LifecycleEventArgs $args)
     {
-        if (null !== ($pos = array_search($this->getSolrId($args),$this->indexable_ids)))
+        if ($this->isIndexable($args) &&  (null !== ($pos = array_search($this->getSolrId($args),$this->indexable_ids))))
         {
             $this->indexer->indexEntity($args->getEntity());
             unset($this->indexable_ids[$pos]);

@@ -17,7 +17,7 @@
         "symfony/framework-bundle": ">=2.0,<2.2-dev"
     },
     "require-dev": {
-        "qimnet/solrclient-test-bundle": "1.0-dev"
+        "qimnet/solrclient-test-bundle": "dev-master"
     },
     "autoload": {
         "psr-0": { "Qimnet\\SolrClientBundle": "" }

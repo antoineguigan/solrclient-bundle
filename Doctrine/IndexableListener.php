@@ -118,7 +118,10 @@ class IndexableListener implements EventSubscriber {
     
     public function preRemove(LifecycleEventArgs $args)
     {
-        $this->indexer->removeEntity($args->getEntity());
+        if ($this->isIndexable($args))
+        {
+            $this->indexer->removeEntity($args->getEntity());
+        }
     }
 }
 

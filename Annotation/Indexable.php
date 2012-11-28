@@ -26,6 +26,13 @@ class Indexable
      * @var int $boost
      */
     public $boost=1;
+    
+    /**
+     * True if the field should only be used to trigger reindexations.
+     * 
+     * @var boolean $virtual
+     */
+    public $virtual=false;
 }
 
 ?>

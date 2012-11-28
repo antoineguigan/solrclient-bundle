@@ -38,11 +38,13 @@ class Indexer {
      *   - id : the id field
      *   - indexable : an array of indexable fields
      *   - needs_index: the needs_index field, if it exists
+     *   - is_indexable: the is_indexable field if it exists
      *   
      * Each field is represented by an object containing the following 
      * properties :
      *   - getter : the getter method for the field
      *   - setter : the getter method for the field
+     *   - virtual : true if the field is virtual
      *   - field : the name of the field in the Doctrine entity
      *   - solr_name : the name of the field
      *   - boost : the boost factor of the field
@@ -58,6 +60,7 @@ class Indexer {
             $fields = new \stdClass;
             $fields->indexable = array();
             $fields->needs_index = null;
+            $fields->is_indexable = null;
             $fields->id=null;
             $ref = new \ReflectionClass($entity_name);
             $get_method_object = function($getter, $annotation, $field=null, $setter=null) use ($entity_name)
@@ -71,6 +74,7 @@ class Indexer {
                     $ret->solr_name = $annotation->solr_name;
                     $ret->boost = $annotation->boost;
                     $ret->id = $annotation->id;
+                    $ret->virtual = $annotation->virtual;
                     if (!$ret->solr_name)
                     {
                         throw new \Exception("Solr field name required for $entity_name:$getter");
@@ -78,17 +82,18 @@ class Indexer {
                 }
                 return $ret;
             };
-            $get_field_object = function($field, $annotation) use ($get_method_object)
+            $get_field_object = function($field, $annotation) use ($get_method_object, $ref)
             {
                 if (($annotation instanceof Indexable) && !$annotation->solr_name)
                 {
                     $annotation->solr_name = $field;
                 }
+                $inflected = Inflector::classify($field);
                 return $get_method_object(
-                            'get' . Inflector::classify($field),
+                            $ref->hasMethod("is$inflected") ? "is$inflected" : "get$inflected",
                             $annotation,
                             $field,
-                            'set' . Inflector::classify($field)
+                            "set$inflected"
                         );
             };
             foreach($ref->getProperties() as $property)
@@ -111,6 +116,14 @@ class Indexer {
                     {
                         $fields->needs_index = $get_field_object($property->name, $ann);
                     }
+                    $ann = $this->annotation_reader
+                            ->getPropertyAnnotation(
+                                new \ReflectionProperty($entity_name, $property->name),
+                                'Qimnet\SolrClientBundle\Annotation\IsIndexable');
+                    if ($ann)
+                    {
+                        $fields->is_indexable = $get_field_object($property->name, $ann);
+                    }
                 }
                 catch (\ReflectionException $ex) {}
             }
@@ -125,6 +138,14 @@ class Indexer {
                     if ($ann)
                     {
                         $fields->indexable[] = $get_method_object($method->name, $ann);
+                    }
+                    $ann = $this->annotation_reader
+                            ->getMethodAnnotation(
+                                new \ReflectionMethod($entity_name, $method->name),
+                                'Qimnet\SolrClientBundle\Annotation\IsIndexable');
+                    if ($ann)
+                    {
+                        $fields->is_indexable = $get_method_object($method->name, $ann);
                     }
 
                 }
@@ -142,6 +163,7 @@ class Indexer {
         }
         return $this->entity_fields[$entity_name];
     }
+    
     /**
      * Indexes all the entities for the repositories defined in the config 
      * file.
@@ -168,17 +190,20 @@ class Indexer {
         $fields = $this->getEntityFields(get_class($entity));
         foreach ($fields->indexable as $field)
         {
-            $value = call_user_func(array($entity, $field->getter));
-            if (is_array($value) || ($value instanceof \Traversable))
+            if (!$field->virtual)
             {
-                foreach($value as $subvalue)
+                $value = call_user_func(array($entity, $field->getter));
+                if (is_array($value) || ($value instanceof \Traversable))
                 {
-                    $document->addField($field->solr_name, $subvalue, $field->boost);
+                    foreach($value as $subvalue)
+                    {
+                        $document->addField($field->solr_name, $subvalue, $field->boost);
+                    }
                 }
-            }
-            else
-            {
-                $document->addField($field->solr_name, $value, $field->boost);
+                else
+                {
+                    $document->addField($field->solr_name, $value, $field->boost);
+                }
             }
         }
         return $document;
@@ -193,7 +218,8 @@ class Indexer {
      */
     public function indexEntities(EntityManager $em, $entity_name, $force = false)
     {
-        $fields = $this->getEntityFields($entity_name);
+        $class = $em->getRepository($entity_name)->getClassName();
+        $fields = $this->getEntityFields($class);
         if (!$fields->needs_index && !$force)
         {
             return;
@@ -266,14 +292,48 @@ class Indexer {
     /**
      * Indexes the given entity
      * 
-     * @param type $entity
+     * @param object $entity
      */
     public function indexEntity($entity)
     {
-       $document = $this->createSolrDocument($entity);
-       $this->client->addDocument($document);
-       $this->client->commit();
-       $this->fields = $this->getEntityFields(get_class($entity));
+        $document = $this->createSolrDocument($entity);
+        $this->client->addDocument($document);
+        $this->client->commit();
+        $this->fields = $this->getEntityFields(get_class($entity));
+    }
+
+    /**
+     * Returns true if the entity is indexable.
+     * 
+     * @param object $entity
+     * @return boolean
+     */
+    public function isIndexable($entity)
+    {
+        $fields = $this->getEntityFields(get_class($entity));
+        return $fields->is_indexable
+            ? call_user_func(array($entity, $fields->is_indexable->getter))
+            : $this->hasIndexableFields($entity);
+    }
+    /**
+     * Returns true if the entity contains indexable fields.
+     * 
+     * @param object $entity
+     * @return boolean
+     */
+    public function hasIndexableFields($entity)
+    {
+        return count($this->getEntityFields(get_class($entity))->indexable);
+    }
+    /**
+     * Returns true if the indexation should be performed in realtime
+     * 
+     * @param object $entity
+     * @return type
+     */
+    public function isRealtime($entity)
+    {
+        return is_null($this->getEntityFields(get_class($entity))->needs_index);
     }
 }
 

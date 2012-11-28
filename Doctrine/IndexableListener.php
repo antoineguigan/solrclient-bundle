@@ -5,6 +5,7 @@ use Doctrine\ORM\Event\LifecycleEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Qimnet\SolrClientBundle\Doctrine\Indexer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Doctrine\ORM\Event\OnFlushEventArgs;
 /**
  * Listens to Doctrine events and updates the Solr index accordingly.
  */
@@ -15,114 +16,72 @@ class IndexableListener implements EventSubscriber {
     protected $indexer;
     protected $indexable_ids=array();
     
-    public function __construct(Indexer $indexer) {
+    public function __construct(Indexer $indexer)
+    {
         $this->indexer = $indexer;
     }
-    public function getSubscribedEvents() {
-        return array('prePersist', 'postPersist', 'preUpdate','postUpdate', 'preRemove');
-    }
-    /**
-     * Returns an object representing the indexable fields for the entity.
-     * 
-     * @param LifecycleEventArgs $args
-     * @return array
-     */
-    protected function getEntityFields(LifecycleEventArgs $args)
+    public function getSubscribedEvents() 
     {
-        return $this->indexer->getEntityFields(get_class($args->getEntity()));
+        return array('onFlush');
     }
-    /**
-     * Returns true if the entity is indexable.
-     * 
-     * @param LifecycleEventArgs $args
-     * @return boolean
-     */
-    protected function isIndexable(LifecycleEventArgs $args)
+    public function onFlush(OnFlushEventArgs $args)
     {
-        return count($this->getEntityFields($args)->indexable);
-    }
-    /**
-     * Returns true if the indexation should be performed in realtime
-     * 
-     * @param \Doctrine\ORM\Event\LifecycleEventArgs $args
-     * @return type
-     */
-    protected function isRealtime(LifecycleEventArgs $args)
-    {
-        return is_null($this->getEntityFields($args)->needs_index);
-    }
-    /**
-     * Returns the solr id of the entity
-     * 
-     * @param \Doctrine\ORM\Event\LifecycleEventArgs $args
-     * @return int
-     */
-    protected function getSolrId(LifecycleEventArgs $args)
-    {
-        return $this->indexer->getSolrId($args->getEntity());
-    }
-    
-    public function prePersist(LifecycleEventArgs $args)
-    {
-        if ($this->isIndexable($args) && !$this->isRealtime($args))
+        $indexer = $this->indexer;
+        $em = $args->getEntityManager();
+        $uow = $em->getUnitOfWork();
+        
+        foreach ($uow->getScheduledEntityDeletions() as $entity)
         {
-            $setter = $this->getEntityFields($args)->needs_index->setter;
-            $args->getEntity()->$setter(1);
-        }
-    }
-    
-    public function postPersist(LifecycleEventArgs $args)
-    {
-        if ($this->isIndexable($args) && $this->isRealtime($args))
-        {
-            $this->indexer->indexEntity($args->getEntity());
-        }
-    }
-    
-    public function preUpdate(PreUpdateEventArgs $args)
-    {
-        if ($this->isIndexable($args))
-        {
-            $modified = false;
-            foreach( $this->getEntityFields($args)->indexable as $indexable)
+            if ($indexer->isIndexable($entity))
             {
-                if ($indexable->field && $args->hasChangedField($indexable->field))
-                {
-                    $modified = true;
-                    break;
-                }
+                $indexer->removeEntity($args->getEntity());
             }
-            if ($modified)
+        }
+        $indexEntity = function($entity) use($indexer, $em, $uow) {
+            if ($indexer->isRealtime($entity))
             {
-                if ($this->isRealtime($args))
+                $indexer->indexEntity($entity);
+            }
+            else
+            {
+                $setter = $indexer->getEntityFields(get_class($entity))
+                        ->needs_index->setter;
+                $entity->$setter(true);
+                $uow->recomputeSingleEntityChangeSet($em->getClassMetadata(get_class($entity)), $entity);
+            }
+        };
+        foreach ($uow->getScheduledEntityInsertions() as $entity)
+        {
+            if ($indexer->isIndexable($entity))
+            {
+                $indexEntity($entity);
+            }
+        }
+        foreach ($uow->getScheduledEntityUpdates() as $entity)
+        {
+            if ($indexer->hasIndexableFields($entity))
+            {
+                $indexer->removeEntity($entity);
+                if ($indexer->isIndexable($entity))
                 {
-                    $this->indexable_ids[] = $this->getSolrId($args);
-                }
-                else
-                {
-                    $setter = $this->getEntityFields($args)->needs_index->setter;
-                    $args->getEntity()->$setter(1);
+                    $changeset = $uow->getEntityChangeSet($entity);
+                    $modified = false;
+                    foreach( $indexer->getEntityFields(get_class($entity))->indexable as $indexable)
+                    {
+                        if ($indexable->field && array_key_exists($indexable->field, $changeset))
+                        {
+                            $modified = true;
+                            break;
+                        }
+                    }
+                    if ($modified) {
+                        $indexEntity($entity);
+                    }
                 }
             }
         }
     }
-    
-    public function postUpdate(LifecycleEventArgs $args)
-    {
-        if ($this->isIndexable($args) &&  (null !== ($pos = array_search($this->getSolrId($args),$this->indexable_ids))))
-        {
-            $this->indexer->indexEntity($args->getEntity());
-            unset($this->indexable_ids[$pos]);
-        }
-    }
-    
-    public function preRemove(LifecycleEventArgs $args)
-    {
-        if ($this->isIndexable($args))
-        {
-            $this->indexer->removeEntity($args->getEntity());
-        }
-    }
+
 }
 
 ?>

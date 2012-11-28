@@ -14,7 +14,7 @@ Features
 Configuration
 -------------
 
-    qimnet_solr:          
+    qimnet_solr_client:          
 
         # list of entities that should be indexed by the batch command.
         entities:             [] 

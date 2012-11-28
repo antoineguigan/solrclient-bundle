@@ -18,7 +18,7 @@ class Configuration implements ConfigurationInterface
     public function getConfigTreeBuilder()
     {
         $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('qimnet_solr');
+        $rootNode = $treeBuilder->root('qimnet_solr_client');
 
         $rootNode
             ->children()

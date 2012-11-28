@@ -1,10 +1,7 @@
 <?php
 namespace Qimnet\SolrClientBundle\Doctrine;
 use Doctrine\Common\EventSubscriber;
-use Doctrine\ORM\Event\LifecycleEventArgs;
-use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Qimnet\SolrClientBundle\Doctrine\Indexer;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 /**
  * Listens to Doctrine events and updates the Solr index accordingly.

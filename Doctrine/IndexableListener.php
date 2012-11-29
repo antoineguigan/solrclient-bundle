@@ -3,6 +3,8 @@ namespace Qimnet\SolrClientBundle\Doctrine;
 use Doctrine\Common\EventSubscriber;
 use Qimnet\SolrClientBundle\Doctrine\Indexer;
 use Doctrine\ORM\Event\OnFlushEventArgs;
+use Doctrine\ORM\Event\LifecycleEventArgs;
+
 /**
  * Listens to Doctrine events and updates the Solr index accordingly.
  */
@@ -18,8 +20,17 @@ class IndexableListener implements EventSubscriber {
     }
     public function getSubscribedEvents() 
     {
-        return array('onFlush');
+        return array('onFlush', 'postPersist');
     }
+    public function postPersist(LifecycleEventArgs $args)
+    {
+        $entity = $args->getEntity();
+        if ($this->indexer->isIndexable($entity) && $this->indexer->isRealtime($entity))
+        {
+            $this->indexer->indexEntity($entity);
+        }
+    }
+
     public function onFlush(OnFlushEventArgs $args)
     {
         $indexer = $this->indexer;
@@ -34,11 +45,7 @@ class IndexableListener implements EventSubscriber {
             }
         }
         $indexEntity = function($entity) use($indexer, $em, $uow) {
-            if ($indexer->isRealtime($entity))
-            {
-                $indexer->indexEntity($entity);
-            }
-            else
+            if (!$indexer->isRealtime($entity))
             {
                 $setter = $indexer->getEntityFields(get_class($entity))
                         ->needs_index->setter;

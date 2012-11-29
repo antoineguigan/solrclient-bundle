@@ -11,7 +11,6 @@ class IndexableListener implements EventSubscriber {
      * @var Indexer $indexer
      */
     protected $indexer;
-    protected $indexable_ids=array();
     
     public function __construct(Indexer $indexer)
     {
@@ -58,22 +57,23 @@ class IndexableListener implements EventSubscriber {
         {
             if ($indexer->hasIndexableFields($entity))
             {
-                $indexer->removeEntity($entity);
-                if ($indexer->isIndexable($entity))
+                $modified = false;
+                $changeset = $uow->getEntityChangeSet($entity);
+                foreach( $indexer->getEntityFields(get_class($entity))->indexable as $indexable)
                 {
-                    $changeset = $uow->getEntityChangeSet($entity);
-                    $modified = false;
-                    foreach( $indexer->getEntityFields(get_class($entity))->indexable as $indexable)
+                    if ($indexable->field && array_key_exists($indexable->field, $changeset))
                     {
-                        if ($indexable->field && array_key_exists($indexable->field, $changeset))
-                        {
-                            $modified = true;
-                            break;
-                        }
+                        $modified = true;
+                        break;
                     }
-                    if ($modified) {
-                        $indexEntity($entity);
-                    }
+                }
+                if ($modified || !$indexer->isIndexable($entity)) 
+                {
+                    $indexer->removeEntity($entity);
+                }
+                if ($modified) 
+                {
+                    $indexEntity($entity);
                 }
             }
         }

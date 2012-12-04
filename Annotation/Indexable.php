@@ -23,7 +23,7 @@ class Indexable
     /**
      * The boost factor of the solr field.
      * 
-     * @var double $boost
+     * @var mixed $boost
      */
     public $boost=1;
     

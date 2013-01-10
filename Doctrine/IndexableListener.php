@@ -41,7 +41,7 @@ class IndexableListener implements EventSubscriber {
         {
             if ($indexer->isIndexable($entity))
             {
-                $indexer->removeEntity($args->getEntity());
+                $indexer->removeEntity($entity);
             }
         }
         $indexEntity = function($entity) use($indexer, $em, $uow) {

@@ -20,7 +20,7 @@ class IndexableListener implements EventSubscriber {
     }
     public function getSubscribedEvents() 
     {
-        return array('onFlush', 'postPersist');
+        return array('onFlush', 'postPersist', 'postUpdate');
     }
     public function postPersist(LifecycleEventArgs $args)
     {
@@ -30,7 +30,14 @@ class IndexableListener implements EventSubscriber {
             $this->indexer->indexEntity($entity);
         }
     }
-
+    public function postUpdate(LifecycleEventArgs $args)
+    {
+        $entity = $args->getEntity();
+        if ($this->indexer->isIndexable($entity) && $this->indexer->isRealtime($entity))
+        {
+            $this->indexer->indexEntity($entity);
+        }
+    }
     public function onFlush(OnFlushEventArgs $args)
     {
         $indexer = $this->indexer;

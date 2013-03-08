@@ -2,10 +2,11 @@
 namespace Qimnet\SolrClientBundle\Doctrine;
 use Doctrine\ORM\EntityManager;
 use Doctrine\Common\Annotations\Reader;
-use Doctrine\Common\Util\Inflector;
 use Doctrine\ORM\Query;
 use Doctrine\DBAL\LockMode;
 use Qimnet\SolrClientBundle\Annotation\Indexable;
+use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
+
 /**
  */
 class Indexer {
@@ -26,10 +27,17 @@ class Indexer {
      */
     protected $annotation_reader;
     
-    public function __construct(\SolrClient $client, Reader $annotation_reader, array $entities) {
+    /**
+     * @var PropertyAccessorInterface $propertyAccessor
+     */
+    protected $propertyAccessor;
+
+
+    public function __construct(\SolrClient $client, Reader $annotation_reader, PropertyAccessorInterface $propertyAccessor, array $entities) {
         $this->client = $client;
         $this->entities = $entities;
         $this->annotation_reader = $annotation_reader;
+        $this->propertyAccessor = $propertyAccessor;
     }
     /**
      * Returns an object representing the indexable fields for the entity.
@@ -42,10 +50,9 @@ class Indexer {
      *   
      * Each field is represented by an object containing the following 
      * properties :
-     *   - getter : the getter method for the field
-     *   - setter : the getter method for the field
      *   - virtual : true if the field is virtual
      *   - field : the name of the field in the Doctrine entity
+     *   - method: the name of the getter method
      *   - solr_name : the name of the field
      *   - boost : the boost factor of the field
      *   - id : true if the field is the id field
@@ -63,12 +70,9 @@ class Indexer {
             $fields->is_indexable = null;
             $fields->id=null;
             $ref = new \ReflectionClass($entity_name);
-            $get_method_object = function($getter, $annotation, $field=null, $setter=null) use ($entity_name)
+            $get_object = function($name, $annotation) use ($entity_name)
             {
                 $ret = new \stdClass;
-                $ret->getter = $getter;
-                $ret->setter = $setter;
-                $ret->field = $field;
                 if ($annotation instanceof Indexable)
                 {
                     $ret->solr_name = $annotation->solr_name;
@@ -77,24 +81,26 @@ class Indexer {
                     $ret->virtual = $annotation->virtual;
                     if (!$ret->solr_name)
                     {
-                        throw new \Exception("Solr field name required for $entity_name:$getter");
+                        throw new \Exception("Solr field name required for $entity_name:$name");
                     }
                 }
                 return $ret;
             };
-            $get_field_object = function($field, $annotation) use ($get_method_object, $ref)
+            $get_method_object = function($method, $annotation) use ($get_object)
+            {
+                $ret = $get_object($method, $annotation);
+                $ret->method = $method;
+                return $ret;
+            };
+            $get_field_object = function($field, $annotation) use ($get_object, $ref)
             {
                 if (($annotation instanceof Indexable) && !$annotation->solr_name)
                 {
                     $annotation->solr_name = $field;
                 }
-                $inflected = Inflector::classify($field);
-                return $get_method_object(
-                            $ref->hasMethod("is$inflected") ? "is$inflected" : "get$inflected",
-                            $annotation,
-                            $field,
-                            "set$inflected"
-                        );
+                $ret = $get_object($field, $annotation);
+                $ret->field = $field;
+                return $ret;
             };
             foreach($ref->getProperties() as $property)
             {
@@ -179,6 +185,33 @@ class Indexer {
         }
     }
     /**
+     * Returns the value for a field object in an entity
+     * 
+     * @param object $entity
+     * @param \stdClass $field
+     * @return mixed
+     */
+    public function getFieldValue($entity, $field)
+    {
+        if (isset($field->method)) {
+            return call_user_func(array($entity, $field->method));
+        } else {
+            return $this->propertyAccessor->getValue($entity, $field->field);
+        }
+    }
+    
+    /**
+     * Sets the value for a field object in an entity
+     * 
+     * @param object $entity
+     * @param \stdClass $field
+     */
+    public function setFieldValue($entity, $field, $value)
+    {
+        $this->propertyAccessor->setValue($entity, $field->field, $value);
+    }
+
+    /**
      * Creates a Solr document from the entity.
      * 
      * @param object $entity
@@ -192,7 +225,7 @@ class Indexer {
         {
             if (!$field->virtual)
             {
-                $value = call_user_func(array($entity, $field->getter));
+                $value = $this->getFieldValue($entity, $field);
                 if (is_array($value) || ($value instanceof \Traversable))
                 {
                     foreach($value as $subvalue)
@@ -241,18 +274,13 @@ class Indexer {
             try {
                 $entity = $em->find($entity_name, $id, 
                         $fields->needs_index ? LockMode::PESSIMISTIC_WRITE : LockMode::NONE);
-                if ($fields->needs_index)
-                {
-                    $getter = $fields->needs_index->getter;
-                    $setter = $fields->needs_index->setter;
-                }
-                if ($entity && ($force || $entity->$getter()))
+                if ($entity && ($force || $this->getFieldValue($entity, $fields->needs_index)))
                 {
                     $this->removeEntity($entity);
                     $this->indexEntity($entity);
                     if ($fields->needs_index)
                     {
-                        $entity->$setter(0);
+                        $this->setFieldValue($entity, $fields->needs_index, 0);
                         $em->persist($entity);
                         $em->flush();
                     }
@@ -276,8 +304,7 @@ class Indexer {
     {
         $class = get_class($entity);
         $fields = $this->getEntityFields($class);
-        $getter = $fields->id->getter;
-        return $entity->$getter();
+        return $this->getFieldValue($entity, $fields->id);
     }
     /**
      * Removes the given entity from the solr index
@@ -312,7 +339,7 @@ class Indexer {
     {
         $fields = $this->getEntityFields(get_class($entity));
         return $fields->is_indexable
-            ? call_user_func(array($entity, $fields->is_indexable->getter))
+            ? $this->getFieldValue($entity, $fields->is_indexable)
             : $this->hasIndexableFields($entity);
     }
     /**

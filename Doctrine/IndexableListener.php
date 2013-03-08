@@ -54,9 +54,9 @@ class IndexableListener implements EventSubscriber {
         $indexEntity = function($entity) use($indexer, $em, $uow) {
             if (!$indexer->isRealtime($entity))
             {
-                $setter = $indexer->getEntityFields(get_class($entity))
-                        ->needs_index->setter;
-                $entity->$setter(true);
+                $needsIndex = $indexer->getEntityFields(get_class($entity))
+                        ->needs_index;
+                $indexer->setFieldValue($entity, $needsIndex, true);
                 $uow->recomputeSingleEntityChangeSet($em->getClassMetadata(get_class($entity)), $entity);
             }
         };
@@ -75,7 +75,7 @@ class IndexableListener implements EventSubscriber {
                 $changeset = $uow->getEntityChangeSet($entity);
                 foreach( $indexer->getEntityFields(get_class($entity))->indexable as $indexable)
                 {
-                    if ($indexable->field && array_key_exists($indexable->field, $changeset))
+                    if (isset($indexable->field) && array_key_exists($indexable->field, $changeset))
                     {
                         $modified = true;
                         break;
